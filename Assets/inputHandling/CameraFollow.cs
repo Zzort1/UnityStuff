@@ -17,7 +17,12 @@ public class CameraFollow : MonoBehaviour
     void LateUpdate()
     {
         // Update the camera's position
-        transform.position = ball.position + currentOffset;
+         Vector3 targetPosition = ball.position + currentOffset;
+         // Validate the target position before assigning it to the camera
+        if (!float.IsNaN(targetPosition.x) && !float.IsNaN(targetPosition.y) && !float.IsNaN(targetPosition.z))
+        {
+            transform.position = ball.position + currentOffset;
+        }
 
         // Make the camera look at the ball
         transform.LookAt(ball.position);

@@ -9,11 +9,21 @@ public class TouchController : MonoBehaviour
     public float maxRotationSpeed = 150f;
 
     public float maxVerticalSpeed = 80f;
+
+    public float zoomSpeed = 0.1f; // Speed of zoom
     private TouchInputActions touchInputActions;
     private InputAction touchPositionAction;
     private InputAction touchPressureAction;
 
-        private bool isTouching;
+    private InputAction primaryTouchAction;
+
+     private InputAction secondaryTouchAction;
+
+    private bool isTouching;
+        
+
+    private float initialPinchDistance;
+    private float initialFOV;
 
     private void Awake()
     {
@@ -22,27 +32,62 @@ public class TouchController : MonoBehaviour
 
     private void OnEnable()
     {
+
         touchPositionAction = touchInputActions.Touch.PrimaryTouch;
         touchPressureAction = touchInputActions.Touch.PrimaryTouchPressure;
+        primaryTouchAction = touchInputActions.Pinch.PrimaryTouch;
+        secondaryTouchAction = touchInputActions.Pinch.SecondaryTouch;
+
         touchPositionAction.Enable();
         touchPressureAction.Enable();
-        
+        primaryTouchAction.Enable();
+        secondaryTouchAction.Enable();
+
         touchPositionAction.performed += OnTouchPerformed;
         touchPositionAction.canceled += OnTouchCanceled;
         touchPressureAction.performed += OnTouchPerformed;
         touchPressureAction.canceled += OnTouchCanceled;
+
+
+        // pinch:   
+        primaryTouchAction.started += OnPinchStarted;
+        primaryTouchAction.canceled += OnPinchEnded;
+        secondaryTouchAction.started += OnPinchStarted;
+        secondaryTouchAction.canceled += OnPinchEnded;
     }
 
     private void OnDisable()
     {
         touchPositionAction.Disable();
         touchPressureAction.Disable();
+        secondaryTouchAction.Disable();
 
         touchPositionAction.performed -= OnTouchPerformed;
         touchPositionAction.canceled -= OnTouchCanceled;
         touchPressureAction.performed -= OnTouchPerformed;
         touchPressureAction.canceled -= OnTouchCanceled;
+
+        // pinch
+        primaryTouchAction.started -= OnPinchStarted;
+        primaryTouchAction.canceled -= OnPinchEnded;
+        secondaryTouchAction.started -= OnPinchStarted;
+        secondaryTouchAction.canceled -= OnPinchEnded;
     }
+
+    private void OnPinchStarted(InputAction.CallbackContext context)
+    {
+        if (primaryTouchAction.ReadValue<Vector2>().sqrMagnitude > 0 && secondaryTouchAction.ReadValue<Vector2>().sqrMagnitude > 0)
+        {
+            initialPinchDistance = Vector2.Distance(primaryTouchAction.ReadValue<Vector2>(), secondaryTouchAction.ReadValue<Vector2>());
+            initialFOV = mainCamera.fieldOfView;
+        }
+    }
+
+    private void OnPinchEnded(InputAction.CallbackContext context)
+    {
+        initialPinchDistance = 0;
+    }
+
 
     private void OnTouchPerformed(InputAction.CallbackContext context)
     {
@@ -191,7 +236,14 @@ public class TouchController : MonoBehaviour
                cameraFollow.RotateLeft(0f);
                cameraFollow.RotateRight(0f); 
          }
+ // Handle pinch-to-zoom
+        if (primaryTouchAction.ReadValue<Vector2>().sqrMagnitude > 0 && secondaryTouchAction.ReadValue<Vector2>().sqrMagnitude > 0)
+        {
+            float currentPinchDistance = Vector2.Distance(primaryTouchAction.ReadValue<Vector2>(), secondaryTouchAction.ReadValue<Vector2>());
+            float pinchDelta = currentPinchDistance - initialPinchDistance;
 
+            mainCamera.fieldOfView = Mathf.Clamp(initialFOV - pinchDelta * zoomSpeed, 20f, 120f);
+        }
 
     }
 }
